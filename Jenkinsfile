@@ -1,79 +1,57 @@
 pipeline {
     agent any
+
     environment {
-        //be sure to replace "bhavukm" with your own Docker Hub username
-        DOCKER_IMAGE_NAME = "bhavukm/train-schedule"
+        DOCKERHUB_USERNAME = 'Jayakumar110821' // Replace with your Docker Hub username
+        IMAGE_NAME = 'abstergo-webstore' // Choose a name for your Docker image
+        K8S_NAMESPACE = 'default' // Kubernetes namespace to deploy to
+        DEPLOYMENT_NAME = 'abstergo-webstore-deployment' // Name of your Kubernetes Deployment
     }
+
     stages {
-        stage('Build') {
+        stage('Checkout') {
             steps {
-                echo 'Running build automation'
-                sh './gradlew build --no-daemon'
-                archiveArtifacts artifacts: 'dist/trainSchedule.zip'
+                git 'https://github.com/Jayakumar110821/cicd-pipeline-jenkins-complete.git'
             }
         }
+
+        stage('Build and Test') {
+            steps {
+                // Add your build and test commands here
+                // For a simple web application, this might involve:
+                // sh 'npm install'
+                // sh 'npm run build'
+                echo 'Building and testing application...'
+            }
+        }
+
         stage('Build Docker Image') {
-            when {
-                branch 'master'
-            }
             steps {
                 script {
-                    app = docker.build(DOCKER_IMAGE_NAME)
-                    app.inside {
-                        sh 'echo Hello, World!'
-                    }
+                    def dockerImage = docker.build("${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${BUILD_NUMBER}", '.')
+                    dockerImage.push()
                 }
             }
         }
-        stage('Push Docker Image') {
-            when {
-                branch 'master'
-            }
+
+        stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'docker_hub_login') {
-                        app.push("${env.BUILD_NUMBER}")
-                        app.push("latest")
-                    }
+                    kubernetesDeploy(
+                        configs: "k8s/deployment.yaml, k8s/service.yaml", // Path to your Kubernetes YAML files
+                        namespace: "${K8S_NAMESPACE}"
+                    )
                 }
             }
         }
-        stage('CanaryDeploy') {
-            when {
-                branch 'master'
-            }
-            environment { 
-                CANARY_REPLICAS = 1
-            }
-            steps {
-                kubernetesDeploy(
-                    kubeconfigId: 'kubeconfig',
-                    configs: 'train-schedule-kube-canary.yml',
-                    enableConfigSubstitution: true
-                )
-            }
+    }
+
+    post {
+        success {
+            echo 'Pipeline finished successfully!'
         }
-        stage('DeployToProduction') {
-            when {
-                branch 'master'
-            }
-            environment { 
-                CANARY_REPLICAS = 0
-            }
-            steps {
-                input 'Deploy to Production?'
-                milestone(1)
-                kubernetesDeploy(
-                    kubeconfigId: 'kubeconfig',
-                    configs: 'train-schedule-kube-canary.yml',
-                    enableConfigSubstitution: true
-                )
-                kubernetesDeploy(
-                    kubeconfigId: 'kubeconfig',
-                    configs: 'train-schedule-kube.yml',
-                    enableConfigSubstitution: true
-                )
-            }
+        failure {
+            echo 'Pipeline failed!'
         }
     }
 }
