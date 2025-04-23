@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USERNAME = 'jayakumar110821' // Replace with your Docker Hub username
+        DOCKERHUB_USERNAME = 'jayakumar110821' // Your Docker Hub username
         IMAGE_NAME = 'abstergo-webstore' // Choose a name for your Docker image
         K8S_NAMESPACE = 'default' // Kubernetes namespace to deploy to
         DEPLOYMENT_NAME = 'abstergo-webstore-deployment' // Name of your Kubernetes Deployment
@@ -38,7 +38,7 @@ pipeline {
             steps {
                 script {
                     kubernetesDeploy(
-                        configs: "k8s/deployment.yaml, k8s/service.yaml", // Path to your Kubernetes YAML files
+                        configs: "k8s/deployment.yaml, k8s/service.yaml", 
                         namespace: "${K8S_NAMESPACE}"
                     )
                 }
