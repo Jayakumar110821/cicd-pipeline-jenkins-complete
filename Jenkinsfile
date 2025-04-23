@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USERNAME = 'Jayakumar110821' // Replace with your Docker Hub username
+        DOCKERHUB_USERNAME = 'jayakumar110821' // Replace with your Docker Hub username
         IMAGE_NAME = 'abstergo-webstore' // Choose a name for your Docker image
         K8S_NAMESPACE = 'default' // Kubernetes namespace to deploy to
         DEPLOYMENT_NAME = 'abstergo-webstore-deployment' // Name of your Kubernetes Deployment
