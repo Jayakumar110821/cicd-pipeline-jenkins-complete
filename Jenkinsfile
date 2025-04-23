@@ -35,18 +35,19 @@ pipeline {
         }
 
         stage('Build Docker Image') {
-            steps {
-                script {
-                    isUnix() {
-                        withEnv(['DOCKER_BUILDKIT=1']) {
-                            sh "docker build -t '${IMAGE_NAME}:${IMAGE_TAG}' ."
-                        }
-                    } else {
-                        bat "docker build -t \"%IMAGE_NAME%:%IMAGE_TAG%\" ."
-                    }
+    steps {
+        script {
+            isUnix() {
+                withEnv(['DOCKER_BUILDKIT=1']) {
+                    sh "docker build -t '${IMAGE_NAME}:${IMAGE_TAG}' ."
                 }
+                // The closing brace for the isUnix() block should be here
+            } else {
+                bat "docker build -t \"%IMAGE_NAME%:%IMAGE_TAG%\" ."
             }
         }
+    }
+}
 
         stage('Push Docker Image') {
             steps {
