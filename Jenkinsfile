@@ -2,35 +2,63 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USERNAME = 'jayakumar110821' // Your Docker Hub username
-        IMAGE_NAME = 'abstergo-webstore' // Choose a name for your Docker image
-        K8S_NAMESPACE = 'default' // Kubernetes namespace to deploy to
-        DEPLOYMENT_NAME = 'abstergo-webstore-deployment' // Name of your Kubernetes Deployment
+        DOCKER_REGISTRY_URL = 'https://registry.hub.docker.com'
+        DOCKER_USERNAME     = credentials('dockerhub-credentials').username
+        DOCKER_PASSWORD     = credentials('dockerhub-credentials').password
+        IMAGE_NAME          = 'jayakumar110821/abstergo-webstore'
+        IMAGE_TAG           = "${BUILD_NUMBER}"
+        FULL_IMAGE_NAME     = "${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}"
+        K8S_NAMESPACE       = 'default' // Adjust this to your Kubernetes namespace
     }
 
     stages {
+        stage('Declarative: Checkout SCM') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Checkout') {
             steps {
-                git 'https://github.com/Jayakumar110821/cicd-pipeline-jenkins-complete.git'
+                git credentialsId: 'dockerhub-credentials', url: 'https://github.com/Jayakumar110821/cicd-pipeline-jenkins-complete.git'
             }
         }
 
         stage('Build and Test') {
             steps {
-                // Add your build and test commands here
-                // For a simple web application, this might involve:
-                // sh 'npm install'
-                // sh 'npm run build'
                 echo 'Building and testing application...'
+                // Add your build and test commands here
+                // Example for a Node.js application:
+                sh 'npm install'
+                sh 'npm test'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    def dockerImage = docker.build("${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${BUILD_NUMBER}", '.')
-                    docker.withRegistry("https://registry.hub.docker.com", 'dockerhub-credentials') {
-                        dockerImage.push()
+                    isUnix() {
+                        withEnv(['DOCKER_BUILDKIT=1']) {
+                            sh "docker build -t '${IMAGE_NAME}:${IMAGE_TAG}' ."
+                        }
+                    } else {
+                        bat "docker build -t \"%IMAGE_NAME%:%IMAGE_TAG%\" ."
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withDockerRegistry(credentialsId: 'dockerhub-credentials', url: "${DOCKER_REGISTRY_URL}") {
+                    script {
+                        isUnix() {
+                            sh "docker tag '${IMAGE_NAME}:${IMAGE_TAG}' '${FULL_IMAGE_NAME}'"
+                            sh "docker push '${FULL_IMAGE_NAME}'"
+                        } else {
+                            bat "docker tag \"%IMAGE_NAME%:%IMAGE_TAG%\" \"%FULL_IMAGE_NAME%\""
+                            bat "docker push \"%FULL_IMAGE_NAME%\""
+                        }
                     }
                 }
             }
@@ -40,7 +68,7 @@ pipeline {
             steps {
                 script {
                     kubernetesDeploy(
-                        configs: "k8s/deployment.yaml, k8s/service.yaml", // Corrected path to your Kubernetes YAML files
+                        configs: 'k8s/deployment.yaml, k8s/service.yaml',
                         namespace: "${K8S_NAMESPACE}"
                     )
                 }
@@ -49,6 +77,10 @@ pipeline {
     }
 
     post {
+        always {
+            echo 'Cleaning up...'
+            // Optional: Add cleanup steps here
+        }
         success {
             echo 'Pipeline finished successfully!'
         }
