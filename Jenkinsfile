@@ -29,7 +29,9 @@ pipeline {
             steps {
                 script {
                     def dockerImage = docker.build("${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${BUILD_NUMBER}", '.')
-                    dockerImage.push()
+                    docker.withRegistry("https://registry.hub.docker.com", 'dockerhub-credentials') {
+                        dockerImage.push()
+                    }
                 }
             }
         }
@@ -38,7 +40,7 @@ pipeline {
             steps {
                 script {
                     kubernetesDeploy(
-                        configs: "k8s/deployment.yaml, k8s/service.yaml", 
+                        configs: "k8s/deployment.yaml, k8s/service.yaml", // Corrected path to your Kubernetes YAML files
                         namespace: "${K8S_NAMESPACE}"
                     )
                 }
